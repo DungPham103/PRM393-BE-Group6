@@ -1,0 +1,151 @@
+### SPORTS SHOP API TESTING SUITE
+@baseUrl = http://localhost:3000/api/v1
+@adminEmail = admin@sportzone.com
+@adminPassword = Admin@123
+@userEmail = user@sportzone.com
+@userPassword = User@123
+
+### ==========================================
+### 1. ĐĂNG NHẬP / ĐĂNG KÝ (AUTHENTICATION)
+### ==========================================
+
+# @name adminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+
+# @name userLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### Lưu Access Token của User từ response đăng nhập
+@userToken = {{userLogin.response.body.accessToken}}
+@userId = {{userLogin.response.body.user.uid}}
+
+### Đăng ký tài khoản User mới tinh
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Nguyễn Hoàng Nam",
+  "email": "namnguyen@example.com",
+  "password": "Password123",
+  "phone": "0987654321"
+}
+
+
+### ==========================================
+### 2. SẢN PHẨM & CỬA HÀNG (PRODUCTS & STORES)
+### ==========================================
+
+### Lấy danh mục sản phẩm (Active)
+GET {{baseUrl}}/categories
+
+###
+
+### Lấy thương hiệu sản phẩm (Active)
+GET {{baseUrl}}/brands
+
+###
+
+### Lấy danh sách địa điểm chi nhánh cửa hàng
+GET {{baseUrl}}/stores
+
+###
+
+### Lấy danh sách sản phẩm (Phân trang, tìm kiếm)
+GET {{baseUrl}}/products?page=1&limit=10&search=Nike
+
+###
+
+### Lấy chi tiết sản phẩm và các biến thể (variants) còn hàng
+# Thay thế :id bằng prd-001 hoặc ID thực tế từ database của bạn
+GET {{baseUrl}}/products/prd-001
+
+
+### ==========================================
+### 3. QUẢN LÝ GIỎ HÀNG (CARTS)
+### ==========================================
+
+### Xem giỏ hàng của tôi
+GET {{baseUrl}}/cart
+Authorization: Bearer {{userToken}}
+
+###
+
+### Thêm sản phẩm vào giỏ hàng
+# Sử dụng ID biến thể của prd-001 (ví dụ var-001 là Nike Dri-FIT Black Size S)
+POST {{baseUrl}}/cart/items
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "variantId": "var-001",
+  "quantity": 2
+}
+
+###
+
+### Cập nhật số lượng của mặt hàng trong giỏ
+# Thay :itemId bằng ID mặt hàng (itemId) nhận từ API Xem giỏ hàng ở trên
+PUT {{baseUrl}}/cart/items/ITEM_ID_IN_CART
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "quantity": 3
+}
+
+###
+
+### Xóa mặt hàng ra khỏi giỏ
+# Thay :itemId bằng ID mặt hàng cần xóa
+DELETE {{baseUrl}}/cart/items/ITEM_ID_IN_CART
+Authorization: Bearer {{userToken}}
+
+
+### ==========================================
+### 4. ĐƠN HÀNG (ORDERS)
+### ==========================================
+
+### Đặt hàng (Checkout)
+# Bật kết nối và gửi yêu cầu này sau khi đã thêm sản phẩm vào giỏ hàng
+# Vui lòng tạo địa chỉ nhận hàng trước trong DB hoặc map ID địa chỉ mẫu
+POST {{baseUrl}}/orders
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "addressId": "ADDRESS_ID_FROM_DB",
+  "paymentMethod": "cod",
+  "note": "Giao giờ hành chính giúp em"
+}
+
+###
+
+### Xem lịch sử đơn hàng của tôi
+GET {{baseUrl}}/orders
+Authorization: Bearer {{userToken}}
+
+###
+
+### Xem chi tiết một đơn hàng của tôi
+GET {{baseUrl}}/orders/ORDER_ID_FROM_DB
+Authorization: Bearer {{userToken}}
+
+###
+
+### Hủy đơn hàng (Chỉ khi đơn ở trạng thái pending)
+PATCH {{baseUrl}}/orders/ORDER_ID_FROM_DB/cancel
+Authorization: Bearer {{userToken}}
