@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -24,29 +25,25 @@ export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Tạo đơn hàng mới (Checkout giỏ hàng)' })
+  @ApiOperation({ summary: 'Tạo đơn hàng (checkout giỏ hàng)' })
   createOrder(@Request() req, @Body() dto: CreateOrderDto) {
     return this.ordersService.createOrder(req.user.uid, dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lấy lịch sử mua hàng của người dùng hiện tại' })
+  @ApiOperation({ summary: 'Lịch sử đơn hàng của user' })
   getMyOrders(@Request() req) {
     return this.ordersService.getMyOrders(req.user.uid);
   }
 
   @Get(':id')
-  @ApiOperation({
-    summary: 'Xem chi tiết một đơn hàng kèm danh sách sản phẩm đã mua',
-  })
+  @ApiOperation({ summary: 'Chi tiết đơn hàng' })
   getOrderById(@Request() req, @Param('id') id: string) {
     return this.ordersService.getOrderById(req.user.uid, id);
   }
 
-  @Patch(':id/cancel')
-  @ApiOperation({
-    summary: 'Hủy đơn hàng của tôi (Chỉ khi đơn hàng ở trạng thái pending)',
-  })
+  @Delete(':id')
+  @ApiOperation({ summary: 'Hủy đơn hàng (chỉ khi trạng thái pending)' })
   cancelOrder(@Request() req, @Param('id') id: string) {
     return this.ordersService.cancelOrder(req.user.uid, id);
   }
@@ -54,7 +51,7 @@ export class OrdersController {
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng (Quyền Admin)' })
+  @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng (Admin only)' })
   @ApiBody({
     schema: {
       type: 'object',

@@ -203,4 +203,12 @@ export class CartsService {
 
     return this.getCart(uid);
   }
+
+  // 6. Xóa toàn bộ giỏ hàng
+  async clearCart(uid: string) {
+    const cart = await this.getOrCreateCart(uid);
+    await this.cartItemRepository.delete({ cartId: cart.cartId });
+    return { message: 'Đã xóa toàn bộ giỏ hàng.' };
+  }
 }
+

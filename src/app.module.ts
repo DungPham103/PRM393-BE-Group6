@@ -7,6 +7,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CartsModule } from './modules/carts/carts.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { UsersModule } from './modules/users/users.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MessagesModule } from './modules/messages/messages.module';
 
 // Import tất cả các entities một cách tường minh để tránh lỗi khởi tạo metadata
 import { User } from './entities/user.entity';
@@ -70,6 +73,9 @@ import { StoreLocation } from './entities/store-location.entity';
     CartsModule,
     // Đăng ký Orders Module
     OrdersModule,
+    UsersModule,
+    NotificationsModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

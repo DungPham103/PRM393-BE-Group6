@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Like } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Product } from '../../entities/product.entity';
 import { Category } from '../../entities/category.entity';
 import { Brand } from '../../entities/brand.entity';
 import { StoreLocation } from '../../entities/store-location.entity';
 import { ProductVariant } from '../../entities/product-variant.entity';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -22,7 +24,6 @@ export class ProductsService {
     private storeRepository: Repository<StoreLocation>,
   ) {}
 
-  // 1. Lấy tất cả danh mục
   async getCategories() {
     return this.categoryRepository.find({
       where: { isActive: true },
@@ -30,7 +31,6 @@ export class ProductsService {
     });
   }
 
-  // 2. Lấy tất cả thương hiệu
   async getBrands() {
     return this.brandRepository.find({
       where: { isActive: true },
@@ -38,14 +38,12 @@ export class ProductsService {
     });
   }
 
-  // 3. Lấy tất cả địa chỉ cửa hàng
   async getStores() {
     return this.storeRepository.find({
       where: { isActive: true },
     });
   }
 
-  // 4. Lấy danh sách sản phẩm kèm lọc, tìm kiếm và phân trang
   async getProducts(query: {
     page?: number;
     limit?: number;
@@ -54,10 +52,12 @@ export class ProductsService {
     brandId?: string;
     minPrice?: number;
     maxPrice?: number;
+    onSale?: boolean;
+    inStock?: boolean;
     gender?: 'men' | 'women' | 'unisex';
   }) {
     const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.productRepository
@@ -66,35 +66,38 @@ export class ProductsService {
       .leftJoinAndSelect('product.brand', 'brand')
       .where('product.isActive = :isActive', { isActive: true });
 
-    // Lọc theo từ khóa tìm kiếm (Tên sản phẩm)
     if (query.search) {
       queryBuilder.andWhere('product.name ILIKE :search', {
         search: `%${query.search}%`,
       });
     }
 
-    // Lọc theo danh mục
     if (query.categoryId) {
       queryBuilder.andWhere('product.categoryId = :categoryId', {
         categoryId: query.categoryId,
       });
     }
 
-    // Lọc theo thương hiệu
     if (query.brandId) {
       queryBuilder.andWhere('product.brandId = :brandId', {
         brandId: query.brandId,
       });
     }
 
-    // Lọc theo giới tính
     if (query.gender) {
       queryBuilder.andWhere('product.gender = :gender', {
         gender: query.gender,
       });
     }
 
-    // Lọc theo khoảng giá (so sánh với salePrice nếu có, ngược lại so sánh với price)
+    if (query.onSale) {
+      queryBuilder.andWhere('product.salePrice IS NOT NULL');
+    }
+
+    if (query.inStock) {
+      queryBuilder.andWhere('product.totalStock > 0');
+    }
+
     if (query.minPrice !== undefined) {
       queryBuilder.andWhere(
         'COALESCE(product.salePrice, product.price) >= :minPrice',
@@ -108,7 +111,6 @@ export class ProductsService {
       );
     }
 
-    // Phân trang & Sắp xếp mới nhất trước
     queryBuilder.orderBy('product.createdAt', 'DESC').skip(skip).take(limit);
 
     const [items, total] = await queryBuilder.getManyAndCount();
@@ -125,7 +127,6 @@ export class ProductsService {
     };
   }
 
-  // 5. Lấy chi tiết sản phẩm và các biến thể còn hàng
   async getProductDetail(productId: string) {
     const product = await this.productRepository.findOne({
       where: { productId, isActive: true },
@@ -143,9 +144,44 @@ export class ProductsService {
       order: { size: 'ASC', colorName: 'ASC' },
     });
 
-    return {
-      ...product,
-      variants,
-    };
+    return { ...product, variants };
+  }
+
+  // === Admin CRUD ===
+
+  async createProduct(dto: CreateProductDto) {
+    const product = this.productRepository.create({
+      categoryId: dto.categoryId,
+      brandId: dto.brandId,
+      name: dto.name,
+      description: dto.description,
+      price: dto.price,
+      salePrice: dto.salePrice,
+      images: dto.images || [],
+      material: dto.material,
+      gender: dto.gender || 'unisex',
+      origin: dto.origin,
+      warrantyInfo: dto.warrantyInfo,
+    });
+    return this.productRepository.save(product);
+  }
+
+  async updateProduct(productId: string, dto: UpdateProductDto) {
+    const product = await this.productRepository.findOne({
+      where: { productId },
+    });
+    if (!product) throw new NotFoundException('Sản phẩm không tồn tại.');
+    Object.assign(product, dto);
+    return this.productRepository.save(product);
+  }
+
+  async deleteProduct(productId: string) {
+    const product = await this.productRepository.findOne({
+      where: { productId },
+    });
+    if (!product) throw new NotFoundException('Sản phẩm không tồn tại.');
+    product.isActive = false;
+    await this.productRepository.save(product);
+    return { message: 'Đã xóa sản phẩm thành công.' };
   }
 }

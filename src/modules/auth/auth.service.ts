@@ -93,4 +93,16 @@ export class AuthService {
       accessToken,
     };
   }
+
+  async getMe(uid: string) {
+    const user = await this.userRepository.findOne({
+      where: { uid },
+      relations: { defaultAddress: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Tài khoản không tồn tại.');
+    }
+    const { passwordHash: _, ...result } = user;
+    return result;
+  }
 }

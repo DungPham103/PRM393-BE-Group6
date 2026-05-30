@@ -2,7 +2,7 @@ import {
   Controller,
   Get,
   Post,
-  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -23,34 +23,36 @@ export class CartsController {
   constructor(private cartsService: CartsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Xem giỏ hàng hiện tại của người dùng' })
+  @ApiOperation({ summary: 'Xem giỏ hàng (kèm thông tin sản phẩm)' })
   getCart(@Request() req) {
     return this.cartsService.getCart(req.user.uid);
   }
 
   @Post('items')
-  @ApiOperation({
-    summary: 'Thêm sản phẩm biến thể (variant SKU) vào giỏ hàng',
-  })
+  @ApiOperation({ summary: 'Thêm sản phẩm vào giỏ' })
   addToCart(@Request() req, @Body() dto: AddToCartDto) {
     return this.cartsService.addToCart(req.user.uid, dto);
   }
 
-  @Put('items/:itemId')
-  @ApiOperation({
-    summary: 'Cập nhật số lượng của một sản phẩm trong giỏ hàng',
-  })
+  @Patch('items/:id')
+  @ApiOperation({ summary: 'Thay đổi số lượng sản phẩm trong giỏ' })
   updateCartItem(
     @Request() req,
-    @Param('itemId') itemId: string,
+    @Param('id') itemId: string,
     @Body() dto: UpdateCartItemDto,
   ) {
     return this.cartsService.updateCartItem(req.user.uid, itemId, dto);
   }
 
-  @Delete('items/:itemId')
-  @ApiOperation({ summary: 'Xóa một sản phẩm khỏi giỏ hàng' })
-  deleteCartItem(@Request() req, @Param('itemId') itemId: string) {
+  @Delete('items/:id')
+  @ApiOperation({ summary: 'Xóa 1 sản phẩm khỏi giỏ' })
+  deleteCartItem(@Request() req, @Param('id') itemId: string) {
     return this.cartsService.deleteCartItem(req.user.uid, itemId);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Xóa toàn bộ giỏ hàng' })
+  clearCart(@Request() req) {
+    return this.cartsService.clearCart(req.user.uid);
   }
 }
