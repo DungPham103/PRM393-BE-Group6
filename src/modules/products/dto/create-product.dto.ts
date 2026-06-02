@@ -5,18 +5,25 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductDto {
-  @ApiProperty({ example: 'cat-001' })
-  @IsNotEmpty()
-  @IsString()
+  @ApiProperty({
+    description: 'ID của danh mục sản phẩm (dạng UUID)',
+    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  })
+  @IsNotEmpty({ message: 'Danh mục sản phẩm không được để trống' })
+  @IsUUID(undefined, { message: 'ID danh mục sản phẩm phải là định dạng UUID hợp lệ' })
   categoryId: string;
 
-  @ApiProperty({ example: 'brd-001' })
-  @IsNotEmpty()
-  @IsString()
+  @ApiProperty({
+    description: 'ID của thương hiệu sản phẩm (dạng UUID)',
+    example: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+  })
+  @IsNotEmpty({ message: 'Thương hiệu sản phẩm không được để trống' })
+  @IsUUID(undefined, { message: 'ID thương hiệu sản phẩm phải là định dạng UUID hợp lệ' })
   brandId: string;
 
   @ApiProperty({ example: 'Áo thun Nike Dri-FIT Training' })

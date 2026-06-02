@@ -150,6 +150,22 @@ export class ProductsService {
   // === Admin CRUD ===
 
   async createProduct(dto: CreateProductDto) {
+    // Kiểm tra categoryId tồn tại trong database
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: dto.categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException(`Danh mục với ID "${dto.categoryId}" không tồn tại.`);
+    }
+
+    // Kiểm tra brandId tồn tại trong database
+    const brand = await this.brandRepository.findOne({
+      where: { brandId: dto.brandId },
+    });
+    if (!brand) {
+      throw new NotFoundException(`Thương hiệu với ID "${dto.brandId}" không tồn tại.`);
+    }
+
     const product = this.productRepository.create({
       categoryId: dto.categoryId,
       brandId: dto.brandId,
@@ -171,6 +187,27 @@ export class ProductsService {
       where: { productId },
     });
     if (!product) throw new NotFoundException('Sản phẩm không tồn tại.');
+
+    // Nếu cập nhật categoryId, kiểm tra xem nó có tồn tại hay không
+    if (dto.categoryId) {
+      const category = await this.categoryRepository.findOne({
+        where: { categoryId: dto.categoryId },
+      });
+      if (!category) {
+        throw new NotFoundException(`Danh mục với ID "${dto.categoryId}" không tồn tại.`);
+      }
+    }
+
+    // Nếu cập nhật brandId, kiểm tra xem nó có tồn tại hay không
+    if (dto.brandId) {
+      const brand = await this.brandRepository.findOne({
+        where: { brandId: dto.brandId },
+      });
+      if (!brand) {
+        throw new NotFoundException(`Thương hiệu với ID "${dto.brandId}" không tồn tại.`);
+      }
+    }
+
     Object.assign(product, dto);
     return this.productRepository.save(product);
   }
