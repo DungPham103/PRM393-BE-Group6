@@ -39,4 +39,13 @@ export class AuthController {
   getMe(@Request() req) {
     return this.authService.getMe(req.user.uid);
   }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đăng xuất tài khoản (Client tự xóa Token)' })
+  logout() {
+    return this.authService.logout();
+  }
 }

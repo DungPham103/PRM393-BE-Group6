@@ -105,4 +105,10 @@ export class AuthService {
     const { passwordHash: _, ...result } = user;
     return result;
   }
+
+  async logout() {
+    return {
+      message: 'Đăng xuất thành công. Vui lòng xóa token lưu trữ ở phía client của bạn.',
+    };
+  }
 }
