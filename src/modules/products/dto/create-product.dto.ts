@@ -5,9 +5,27 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class ProductVariantDto {
+  @ApiProperty({ example: 'M' })
+  @IsEnum(['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'FREE'])
+  @IsNotEmpty()
+  size: 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL' | 'FREE';
+
+  @ApiProperty({ example: 'Đen' })
+  @IsString()
+  @IsNotEmpty()
+  colorName: string;
+
+  @ApiProperty({ example: 15 })
+  @IsNumber()
+  @IsNotEmpty()
+  stockQty: number;
+}
 
 export class CreateProductDto {
   @ApiProperty({
@@ -15,7 +33,9 @@ export class CreateProductDto {
     example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   })
   @IsNotEmpty({ message: 'Danh mục sản phẩm không được để trống' })
-  @IsUUID(undefined, { message: 'ID danh mục sản phẩm phải là định dạng UUID hợp lệ' })
+  @IsString({
+    message: 'ID danh mục sản phẩm phải là chuỗi hợp lệ',
+  })
   categoryId: string;
 
   @ApiProperty({
@@ -23,7 +43,9 @@ export class CreateProductDto {
     example: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
   })
   @IsNotEmpty({ message: 'Thương hiệu sản phẩm không được để trống' })
-  @IsUUID(undefined, { message: 'ID thương hiệu sản phẩm phải là định dạng UUID hợp lệ' })
+  @IsString({
+    message: 'ID thương hiệu sản phẩm phải là chuỗi hợp lệ',
+  })
   brandId: string;
 
   @ApiProperty({ example: 'Áo thun Nike Dri-FIT Training' })
@@ -70,4 +92,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   warrantyInfo?: string;
+
+  @ApiPropertyOptional({ type: [ProductVariantDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
 }

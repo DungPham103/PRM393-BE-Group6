@@ -48,6 +48,12 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'otp_code', type: 'varchar', length: 10, nullable: true })
+  otpCode: string | null;
+
+  @Column({ name: 'otp_expires_at', type: 'timestamptz', nullable: true })
+  otpExpiresAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

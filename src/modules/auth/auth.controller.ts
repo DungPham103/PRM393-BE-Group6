@@ -36,7 +36,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy thông tin user đang đăng nhập' })
-  getMe(@Request() req) {
+  getMe(@Request() req: { user: { uid: string } }) {
     return this.authService.getMe(req.user.uid);
   }
 
@@ -47,5 +47,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng xuất tài khoản (Client tự xóa Token)' })
   logout() {
     return this.authService.logout();
+  }
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác thực OTP qua Email' })
+  verifyOtp(@Body() body: { email: string; otp: string }) {
+    return this.authService.verifyOtp(body.email, body.otp);
+  }
+
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Gửi lại mã OTP qua Email' })
+  resendOtp(@Body() body: { email: string }) {
+    return this.authService.resendOtp(body.email);
   }
 }

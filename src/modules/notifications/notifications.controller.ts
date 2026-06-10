@@ -19,19 +19,22 @@ export class NotificationsController {
 
   @Get()
   @ApiOperation({ summary: 'Danh sách thông báo của user' })
-  getNotifications(@Request() req) {
+  getNotifications(@Request() req: { user: { uid: string } }) {
     return this.notificationsService.getNotifications(req.user.uid);
   }
 
   @Patch(':id/read')
   @ApiOperation({ summary: 'Đánh dấu 1 thông báo đã đọc' })
-  markAsRead(@Request() req, @Param('id') id: string) {
+  markAsRead(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.notificationsService.markAsRead(req.user.uid, id);
   }
 
   @Patch('read-all')
   @ApiOperation({ summary: 'Đánh dấu tất cả thông báo đã đọc' })
-  markAllAsRead(@Request() req) {
+  markAllAsRead(@Request() req: { user: { uid: string } }) {
     return this.notificationsService.markAllAsRead(req.user.uid);
   }
 }

@@ -9,6 +9,8 @@ import { User } from '../../entities/user.entity';
 import { Cart } from '../../entities/cart.entity';
 import { JwtStrategy } from './jwt.strategy';
 
+import { MailModule } from '../mail/mail.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Cart]),
@@ -22,10 +24,11 @@ import { JwtStrategy } from './jwt.strategy';
           'super_secret_key_sportzone_2026',
         signOptions: {
           expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
-            '7d') as any,
+            '7d') as unknown as number,
         },
       }),
     }),
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

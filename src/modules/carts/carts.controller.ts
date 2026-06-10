@@ -24,20 +24,23 @@ export class CartsController {
 
   @Get()
   @ApiOperation({ summary: 'Xem giỏ hàng (kèm thông tin sản phẩm)' })
-  getCart(@Request() req) {
+  getCart(@Request() req: { user: { uid: string } }) {
     return this.cartsService.getCart(req.user.uid);
   }
 
   @Post('items')
   @ApiOperation({ summary: 'Thêm sản phẩm vào giỏ' })
-  addToCart(@Request() req, @Body() dto: AddToCartDto) {
+  addToCart(
+    @Request() req: { user: { uid: string } },
+    @Body() dto: AddToCartDto,
+  ) {
     return this.cartsService.addToCart(req.user.uid, dto);
   }
 
   @Patch('items/:id')
   @ApiOperation({ summary: 'Thay đổi số lượng sản phẩm trong giỏ' })
   updateCartItem(
-    @Request() req,
+    @Request() req: { user: { uid: string } },
     @Param('id') itemId: string,
     @Body() dto: UpdateCartItemDto,
   ) {
@@ -46,13 +49,16 @@ export class CartsController {
 
   @Delete('items/:id')
   @ApiOperation({ summary: 'Xóa 1 sản phẩm khỏi giỏ' })
-  deleteCartItem(@Request() req, @Param('id') itemId: string) {
+  deleteCartItem(
+    @Request() req: { user: { uid: string } },
+    @Param('id') itemId: string,
+  ) {
     return this.cartsService.deleteCartItem(req.user.uid, itemId);
   }
 
   @Delete()
   @ApiOperation({ summary: 'Xóa toàn bộ giỏ hàng' })
-  clearCart(@Request() req) {
+  clearCart(@Request() req: { user: { uid: string } }) {
     return this.cartsService.clearCart(req.user.uid);
   }
 }

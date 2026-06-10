@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Order, OrderStatus, PaymentMethod } from '../../entities/order.entity';
+import { Order, OrderStatus } from '../../entities/order.entity';
 import { OrderItem } from '../../entities/order-item.entity';
 import { Cart } from '../../entities/cart.entity';
 import { CartItem } from '../../entities/cart-item.entity';

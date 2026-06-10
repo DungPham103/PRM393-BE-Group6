@@ -2,9 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static assets explicitly for the uploads directory
+  app.useStaticAssets(join(__dirname, '..', 'public', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // Bật CORS để Flutter client hoặc web app có thể gọi API
   app.enableCors();
@@ -56,4 +63,4 @@ async function bootstrap() {
     `📖 Swagger API Documentation is available at: http://localhost:${port}/api/docs`,
   );
 }
-bootstrap();
+void bootstrap();

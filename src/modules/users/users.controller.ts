@@ -25,14 +25,17 @@ export class UsersController {
 
   @Get('users/:id')
   @ApiOperation({ summary: 'Xem profile người dùng' })
-  getUserProfile(@Request() req, @Param('id') id: string) {
+  getUserProfile(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.usersService.getUserProfile(req.user.uid, id);
   }
 
   @Patch('users/:id')
   @ApiOperation({ summary: 'Cập nhật profile người dùng' })
   updateUserProfile(
-    @Request() req,
+    @Request() req: { user: { uid: string } },
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
   ) {
@@ -41,14 +44,17 @@ export class UsersController {
 
   @Get('users/:id/addresses')
   @ApiOperation({ summary: 'Danh sách địa chỉ giao hàng của người dùng' })
-  getAddresses(@Request() req, @Param('id') id: string) {
+  getAddresses(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.usersService.getAddresses(req.user.uid, id);
   }
 
   @Post('users/:id/addresses')
   @ApiOperation({ summary: 'Thêm địa chỉ giao hàng mới' })
   createAddress(
-    @Request() req,
+    @Request() req: { user: { uid: string } },
     @Param('id') id: string,
     @Body() dto: CreateAddressDto,
   ) {
@@ -58,7 +64,7 @@ export class UsersController {
   @Patch('addresses/:id')
   @ApiOperation({ summary: 'Sửa địa chỉ giao hàng' })
   updateAddress(
-    @Request() req,
+    @Request() req: { user: { uid: string } },
     @Param('id') id: string,
     @Body() dto: UpdateAddressDto,
   ) {
@@ -67,7 +73,10 @@ export class UsersController {
 
   @Delete('addresses/:id')
   @ApiOperation({ summary: 'Xóa địa chỉ giao hàng' })
-  deleteAddress(@Request() req, @Param('id') id: string) {
+  deleteAddress(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.usersService.deleteAddress(req.user.uid, id);
   }
 }

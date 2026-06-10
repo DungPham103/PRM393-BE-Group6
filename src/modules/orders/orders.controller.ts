@@ -26,25 +26,34 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Tạo đơn hàng (checkout giỏ hàng)' })
-  createOrder(@Request() req, @Body() dto: CreateOrderDto) {
+  createOrder(
+    @Request() req: { user: { uid: string } },
+    @Body() dto: CreateOrderDto,
+  ) {
     return this.ordersService.createOrder(req.user.uid, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Lịch sử đơn hàng của user' })
-  getMyOrders(@Request() req) {
+  getMyOrders(@Request() req: { user: { uid: string } }) {
     return this.ordersService.getMyOrders(req.user.uid);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết đơn hàng' })
-  getOrderById(@Request() req, @Param('id') id: string) {
+  getOrderById(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.ordersService.getOrderById(req.user.uid, id);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Hủy đơn hàng (chỉ khi trạng thái pending)' })
-  cancelOrder(@Request() req, @Param('id') id: string) {
+  cancelOrder(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
     return this.ordersService.cancelOrder(req.user.uid, id);
   }
 
