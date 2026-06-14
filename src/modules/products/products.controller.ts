@@ -8,7 +8,14 @@ import {
   Query,
   Body,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -39,6 +46,15 @@ export class ProductsController {
     return this.productsService.getBrands();
   }
 
+  @Post('brands')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Thêm thương hiệu mới (Admin)' })
+  createBrand(@Body('name') name: string) {
+    return this.productsService.createBrand(name);
+  }
+
   @Get('stores')
   @ApiOperation({ summary: 'Lấy danh sách chi nhánh cửa hàng kèm tọa độ' })
   getStores() {
@@ -46,23 +62,82 @@ export class ProductsController {
   }
 
   @Get('products')
-  @ApiOperation({ summary: 'Danh sách sản phẩm (filter + search + phân trang)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Trang (mặc định 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng mỗi trang (mặc định 20)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Tìm theo tên sản phẩm' })
-  @ApiQuery({ name: 'category_id', required: false, type: String, description: 'Lọc theo danh mục' })
-  @ApiQuery({ name: 'brand_id', required: false, type: String, description: 'Lọc theo thương hiệu' })
-  @ApiQuery({ name: 'min_price', required: false, type: Number, description: 'Giá tối thiểu' })
-  @ApiQuery({ name: 'max_price', required: false, type: Number, description: 'Giá tối đa' })
-  @ApiQuery({ name: 'on_sale', required: false, type: Boolean, description: 'Chỉ lấy sản phẩm khuyến mãi' })
-  @ApiQuery({ name: 'in_stock', required: false, type: Boolean, description: 'Chỉ lấy sản phẩm còn hàng' })
-  @ApiQuery({ name: 'gender', required: false, enum: ['men', 'women', 'unisex'], description: 'Lọc theo giới tính' })
+  @ApiOperation({
+    summary: 'Danh sách sản phẩm (filter + search + phân trang)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Trang (mặc định 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Số lượng mỗi trang (mặc định 20)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Tìm theo tên sản phẩm',
+  })
+  @ApiQuery({
+    name: 'category_id',
+    required: false,
+    type: String,
+    description: 'Lọc theo danh mục',
+  })
+  @ApiQuery({
+    name: 'brand_id',
+    required: false,
+    type: String,
+    description: 'Lọc theo thương hiệu',
+  })
+  @ApiQuery({
+    name: 'min_price',
+    required: false,
+    type: Number,
+    description: 'Giá tối thiểu',
+  })
+  @ApiQuery({
+    name: 'max_price',
+    required: false,
+    type: Number,
+    description: 'Giá tối đa',
+  })
+  @ApiQuery({
+    name: 'on_sale',
+    required: false,
+    type: Boolean,
+    description: 'Chỉ lấy sản phẩm khuyến mãi',
+  })
+  @ApiQuery({
+    name: 'in_stock',
+    required: false,
+    type: Boolean,
+    description: 'Chỉ lấy sản phẩm còn hàng',
+  })
+  @ApiQuery({
+    name: 'size',
+    required: false,
+    type: String,
+    description: 'Lọc theo size',
+  })
+  @ApiQuery({
+    name: 'gender',
+    required: false,
+    enum: ['men', 'women', 'unisex'],
+    description: 'Lọc theo giới tính',
+  })
   getProducts(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('category_id') categoryId?: string,
     @Query('brand_id') brandId?: string,
+    @Query('size') size?: string,
     @Query('min_price') minPrice?: number,
     @Query('max_price') maxPrice?: number,
     @Query('on_sale') onSale?: boolean,
@@ -75,6 +150,7 @@ export class ProductsController {
       search,
       categoryId,
       brandId,
+      size,
       minPrice,
       maxPrice,
       onSale,
@@ -114,5 +190,29 @@ export class ProductsController {
   @ApiOperation({ summary: 'Xóa sản phẩm (Admin)' })
   deleteProduct(@Param('id') id: string) {
     return this.productsService.deleteProduct(id);
+  }
+
+  @Get('products/uploads/:filename')
+  @ApiOperation({ summary: 'Lấy file ảnh upload' })
+  serveImage(@Param('filename') filename: string, @Res() res: Response) {
+    res.sendFile(filename, { root: './public/uploads' });
+  }
+
+  @Post('products/upload')
+  @ApiOperation({ summary: 'Upload ảnh sản phẩm' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './public/uploads',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  uploadFile(@UploadedFile() file: Express.Multer.File) {
+    return { url: `/api/v1/products/uploads/${file.filename}` };
   }
 }

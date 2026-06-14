@@ -44,12 +44,18 @@ export class ProductsService {
     });
   }
 
+  async createBrand(name: string) {
+    const brand = this.brandRepository.create({ name, isActive: true });
+    return this.brandRepository.save(brand);
+  }
+
   async getProducts(query: {
     page?: number;
     limit?: number;
     search?: string;
     categoryId?: string;
     brandId?: string;
+    size?: string;
     minPrice?: number;
     maxPrice?: number;
     onSale?: boolean;
@@ -76,6 +82,15 @@ export class ProductsService {
       queryBuilder.andWhere('product.categoryId = :categoryId', {
         categoryId: query.categoryId,
       });
+    }
+
+    if (query.size) {
+      queryBuilder.innerJoin(
+        'product.variants',
+        'variant',
+        'variant.size = :size',
+        { size: query.size },
+      );
     }
 
     if (query.brandId) {
@@ -155,7 +170,9 @@ export class ProductsService {
       where: { categoryId: dto.categoryId },
     });
     if (!category) {
-      throw new NotFoundException(`Danh mục với ID "${dto.categoryId}" không tồn tại.`);
+      throw new NotFoundException(
+        `Danh mục với ID "${dto.categoryId}" không tồn tại.`,
+      );
     }
 
     // Kiểm tra brandId tồn tại trong database
@@ -163,7 +180,9 @@ export class ProductsService {
       where: { brandId: dto.brandId },
     });
     if (!brand) {
-      throw new NotFoundException(`Thương hiệu với ID "${dto.brandId}" không tồn tại.`);
+      throw new NotFoundException(
+        `Thương hiệu với ID "${dto.brandId}" không tồn tại.`,
+      );
     }
 
     const product = this.productRepository.create({
@@ -179,7 +198,22 @@ export class ProductsService {
       origin: dto.origin,
       warrantyInfo: dto.warrantyInfo,
     });
-    return this.productRepository.save(product);
+    const savedProduct = await this.productRepository.save(product);
+
+    if (dto.variants && dto.variants.length > 0) {
+      const variantsToSave = dto.variants.map((v) => {
+        return this.variantRepository.create({
+          productId: savedProduct.productId,
+          size: v.size,
+          colorName: v.colorName,
+          stockQty: v.stockQty,
+          sku: `${savedProduct.productId.substring(0, 8)}-${v.size}-${v.colorName}`.toUpperCase(),
+        });
+      });
+      await this.variantRepository.save(variantsToSave);
+    }
+
+    return savedProduct;
   }
 
   async updateProduct(productId: string, dto: UpdateProductDto) {
@@ -194,7 +228,9 @@ export class ProductsService {
         where: { categoryId: dto.categoryId },
       });
       if (!category) {
-        throw new NotFoundException(`Danh mục với ID "${dto.categoryId}" không tồn tại.`);
+        throw new NotFoundException(
+          `Danh mục với ID "${dto.categoryId}" không tồn tại.`,
+        );
       }
     }
 
@@ -204,7 +240,9 @@ export class ProductsService {
         where: { brandId: dto.brandId },
       });
       if (!brand) {
-        throw new NotFoundException(`Thương hiệu với ID "${dto.brandId}" không tồn tại.`);
+        throw new NotFoundException(
+          `Thương hiệu với ID "${dto.brandId}" không tồn tại.`,
+        );
       }
     }
 

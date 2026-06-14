@@ -1,7 +1,7 @@
 -- ============================================================
 --  SPORTSWEAR SHOP – PostgreSQL Schema
 --  App: Flutter | State: Provider / Bloc | Backend: NestJS
---  Version: 2.0 – Thêm password_hash, role vào users
+--  Version: 2.1 – Thêm otp_code, otp_expires_at vào users
 -- ============================================================
 
 -- Bật extension tạo UUID tự động
@@ -21,6 +21,8 @@ CREATE TABLE users (
                             CHECK (role IN ('customer', 'admin')),
     default_address_id  VARCHAR(36),                        -- FK thêm sau (circular dep)
     is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
+    otp_code            VARCHAR(10),
+    otp_expires_at      TIMESTAMPTZ,
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

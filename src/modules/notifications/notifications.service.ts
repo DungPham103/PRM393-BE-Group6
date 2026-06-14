@@ -27,10 +27,7 @@ export class NotificationsService {
   }
 
   async markAllAsRead(uid: string) {
-    await this.notifRepository.update(
-      { uid, isRead: false },
-      { isRead: true },
-    );
+    await this.notifRepository.update({ uid, isRead: false }, { isRead: true });
     return { message: 'Đã đánh dấu tất cả thông báo đã đọc.' };
   }
 }

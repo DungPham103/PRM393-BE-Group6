@@ -10,6 +10,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { UsersModule } from './modules/users/users.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { MailModule } from './modules/mail/mail.module';
 
 // Import tất cả các entities một cách tường minh để tránh lỗi khởi tạo metadata
 import { User } from './entities/user.entity';
@@ -76,6 +77,7 @@ import { StoreLocation } from './entities/store-location.entity';
     UsersModule,
     NotificationsModule,
     MessagesModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

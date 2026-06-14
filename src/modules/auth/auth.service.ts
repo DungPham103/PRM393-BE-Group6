@@ -11,6 +11,7 @@ import { User } from '../../entities/user.entity';
 import { Cart } from '../../entities/cart.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     @InjectRepository(Cart)
     private cartRepository: Repository<Cart>,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -30,24 +32,60 @@ export class AuthService {
       where: { email },
     });
     if (existingUser) {
-      throw new BadRequestException('Email này đã được sử dụng.');
+      if (existingUser.isActive) {
+        throw new BadRequestException('Email này đã được sử dụng.');
+      } else {
+        // Tài khoản chưa xác thực -> Sinh lại OTP và gửi lại
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        existingUser.otpCode = otpCode;
+        existingUser.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+        await this.userRepository.save(existingUser);
+
+        // Gửi email
+        try {
+          await this.mailService.sendOtpEmail(email, otpCode);
+        } catch (e) {
+          console.error(e);
+        }
+
+        // Trả về kết quả mà không kèm passwordHash
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { passwordHash: _, ...result } = existingUser;
+        return result;
+      }
     }
 
-    // 2. Mã hóa mật khẩu
+    // 3. Mã hóa mật khẩu
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // 3. Tạo User mới
+    // 4. Sinh OTP 6 số ngẫu nhiên
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+
+    // 5. Tạo User mới
     const newUser = this.userRepository.create({
       fullName,
       email,
       passwordHash,
       phone,
       avatarUrl,
-      role: 'customer', // Mặc định là khách hàng
+      role: 'customer',
+      isActive: false,
+      otpCode,
+      otpExpiresAt,
     });
 
     const savedUser = await this.userRepository.save(newUser);
+
+    // 6. Gửi email OTP
+    // Chạy ngầm không dùng await chặn nếu không cần thiết, hoặc await để bắt lỗi
+    try {
+      await this.mailService.sendOtpEmail(email, otpCode);
+    } catch (e) {
+      console.error(e);
+      // Có thể log lỗi nhưng vẫn cho đăng ký thành công (hoặc throw lỗi tùy bạn)
+    }
 
     // 4. Tự động tạo giỏ hàng (Cart) cho User mới đăng ký
     const newCart = this.cartRepository.create({
@@ -56,6 +94,7 @@ export class AuthService {
     await this.cartRepository.save(newCart);
 
     // Trả về thông tin user (không kèm password_hash)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...result } = savedUser;
     return result;
   }
@@ -73,7 +112,9 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Tài khoản này đang bị tạm khóa.');
+      throw new UnauthorizedException(
+        'Tài khoản chưa được xác thực email. Vui lòng xác thực mã OTP.',
+      );
     }
 
     // 2. So sánh mật khẩu băm
@@ -86,6 +127,7 @@ export class AuthService {
     const payload = { sub: user.uid, email: user.email, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...userWithoutPassword } = user;
 
     return {
@@ -102,13 +144,65 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Tài khoản không tồn tại.');
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...result } = user;
     return result;
   }
 
-  async logout() {
+  logout() {
     return {
-      message: 'Đăng xuất thành công. Vui lòng xóa token lưu trữ ở phía client của bạn.',
+      message:
+        'Đăng xuất thành công. Vui lòng xóa token lưu trữ ở phía client của bạn.',
     };
+  }
+
+  async verifyOtp(email: string, otp: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('Email không tồn tại.');
+    }
+    if (user.isActive) {
+      throw new BadRequestException('Tài khoản đã được xác thực trước đó.');
+    }
+    if (user.otpCode !== otp) {
+      throw new BadRequestException('Mã OTP không chính xác.');
+    }
+    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+      throw new BadRequestException('Mã OTP đã hết hạn.');
+    }
+
+    user.isActive = true;
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Xác thực email thành công.' };
+  }
+
+  async resendOtp(email: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('Email không tồn tại.');
+    }
+    if (user.isActive) {
+      throw new BadRequestException('Tài khoản đã được xác thực trước đó.');
+    }
+
+    // Sinh OTP 6 số ngẫu nhiên mới
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+
+    user.otpCode = otpCode;
+    user.otpExpiresAt = otpExpiresAt;
+    await this.userRepository.save(user);
+
+    try {
+      await this.mailService.sendOtpEmail(email, otpCode);
+    } catch (e) {
+      console.error(e);
+      throw new BadRequestException('Không thể gửi email OTP.');
+    }
+
+    return { message: 'Đã gửi lại mã OTP. Vui lòng kiểm tra email.' };
   }
 }

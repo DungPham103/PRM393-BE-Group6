@@ -61,7 +61,7 @@ export class CartsService {
       // Cập nhật lại unitPrice trong DB nếu giá sản phẩm thay đổi để đồng bộ giỏ hàng
       if (Number(item.unitPrice) !== currentPrice) {
         item.unitPrice = currentPrice;
-        this.cartItemRepository.save(item);
+        void this.cartItemRepository.save(item);
       }
 
       const lineTotal = currentPrice * item.quantity;
@@ -211,4 +211,3 @@ export class CartsService {
     return { message: 'Đã xóa toàn bộ giỏ hàng.' };
   }
 }
-
