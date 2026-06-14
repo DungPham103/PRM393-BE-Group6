@@ -1,7 +1,7 @@
 -- ============================================================
 --  SPORTSWEAR SHOP – PostgreSQL Schema
 --  App: Flutter | State: Provider / Bloc | Backend: NestJS
---  Version: 2.0 – Thêm password_hash, role vào users
+--  Version: 2.1 – Thêm otp_code, otp_expires_at vào users
 -- ============================================================
 
 -- Bật extension tạo UUID tự động
