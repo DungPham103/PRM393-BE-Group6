@@ -47,8 +47,8 @@ export class MailService {
     if (resendApiKey) {
       this.logger.log(`Attempting to send OTP email to ${toEmail} using Resend API...`);
       try {
-        // Mặc định dùng onboarding@resend.dev của Resend Sandbox nếu chưa cấu hình EMAIL_FROM/EMAIL_USER
-        const fromEmail = this.configService.get<string>('EMAIL_FROM') || 'onboarding@resend.dev';
+        // Mặc định dùng noreply@uniwave.site đã được verify của Resend nếu chưa cấu hình EMAIL_FROM
+        const fromEmail = this.configService.get<string>('EMAIL_FROM') || 'noreply@uniwave.site';
         
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
