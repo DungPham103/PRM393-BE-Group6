@@ -173,7 +173,18 @@ export class AuthService {
     user.otpExpiresAt = null;
     await this.userRepository.save(user);
 
-    return { message: 'Xác thực email thành công.' };
+    // Sinh mã JWT Token để hỗ trợ Client tự động đăng nhập sau khi xác thực OTP thành công
+    const payload = { sub: user.uid, email: user.email, role: user.role };
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _, ...userWithoutPassword } = user;
+
+    return {
+      message: 'Xác thực email thành công.',
+      user: userWithoutPassword,
+      accessToken,
+    };
   }
 
   async resendOtp(email: string) {
