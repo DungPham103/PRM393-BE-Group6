@@ -47,7 +47,7 @@ export class MailService {
     } catch (error) {
       this.logger.error(`Error sending email to ${toEmail}:`, error);
       throw new Error(
-        'Không thể gửi email OTP, vui lòng kiểm tra lại cấu hình SMTP.',
+        `Không thể gửi email OTP. Lỗi SMTP gốc: ${error.message || error}`,
       );
     }
   }
