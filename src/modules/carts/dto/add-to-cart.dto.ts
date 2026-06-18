@@ -1,12 +1,12 @@
-import { IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AddToCartDto {
   @ApiProperty({
-    description: 'ID của biến thể sản phẩm cần thêm vào giỏ (dạng UUID)',
-    example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    description: 'ID của biến thể sản phẩm cần thêm vào giỏ',
+    example: 'var-001',
   })
-  @IsUUID(undefined, { message: 'ID biến thể không hợp lệ' })
+  @IsString({ message: 'ID biến thể không hợp lệ' })
   @IsNotEmpty({ message: 'ID biến thể không được để trống' })
   variantId: string;
 

@@ -3,17 +3,16 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
 } from 'class-validator';
 import { PaymentMethod } from '../../../entities/order.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateOrderDto {
   @ApiProperty({
-    description: 'ID của địa chỉ nhận hàng của người dùng (dạng UUID)',
-    example: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+    description: 'ID của địa chỉ nhận hàng của người dùng',
+    example: 'addr-001',
   })
-  @IsUUID(undefined, { message: 'ID địa chỉ nhận hàng không hợp lệ' })
+  @IsString({ message: 'ID địa chỉ nhận hàng không hợp lệ' })
   @IsNotEmpty({ message: 'Địa chỉ nhận hàng không được để trống' })
   addressId: string;
 
