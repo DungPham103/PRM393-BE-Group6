@@ -41,12 +41,10 @@ export class AuthService {
         existingUser.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
         await this.userRepository.save(existingUser);
 
-        // Gửi email
-        try {
-          await this.mailService.sendOtpEmail(email, otpCode);
-        } catch (e) {
-          console.error(e);
-        }
+        // Gửi email chạy ngầm để tránh chặn luồng HTTP
+        this.mailService.sendOtpEmail(email, otpCode).catch((e) => {
+          console.error('Background sendOtpEmail error for existing user:', e);
+        });
 
         // Trả về kết quả mà không kèm passwordHash
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -78,14 +76,10 @@ export class AuthService {
 
     const savedUser = await this.userRepository.save(newUser);
 
-    // 6. Gửi email OTP
-    // Chạy ngầm không dùng await chặn nếu không cần thiết, hoặc await để bắt lỗi
-    try {
-      await this.mailService.sendOtpEmail(email, otpCode);
-    } catch (e) {
-      console.error(e);
-      // Có thể log lỗi nhưng vẫn cho đăng ký thành công (hoặc throw lỗi tùy bạn)
-    }
+    // 6. Gửi email OTP chạy ngầm để API phản hồi ngay lập tức
+    this.mailService.sendOtpEmail(email, otpCode).catch((e) => {
+      console.error('Background sendOtpEmail error for new user:', e);
+    });
 
     // 4. Tự động tạo giỏ hàng (Cart) cho User mới đăng ký
     const newCart = this.cartRepository.create({
