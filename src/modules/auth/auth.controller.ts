@@ -7,6 +7,7 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -61,5 +62,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Gửi lại mã OTP qua Email' })
   resendOtp(@Body() body: { email: string }) {
     return this.authService.resendOtp(body.email);
+  }
+
+  @Get('test-mail')
+  @ApiOperation({ summary: 'Test cấu hình gửi mail và trả về lỗi chi tiết nếu có' })
+  testMail(@Query('email') email: string) {
+    return this.authService.testMail(email);
   }
 }

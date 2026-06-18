@@ -203,4 +203,13 @@ export class AuthService {
 
     return { message: 'Đã gửi lại mã OTP. Vui lòng kiểm tra email.' };
   }
+
+  async testMail(email: string) {
+    try {
+      await this.mailService.sendOtpEmail(email, '999999');
+      return { success: true, message: 'Gửi mail test thành công!' };
+    } catch (e) {
+      return { success: false, error: e.message, stack: e.stack };
+    }
+  }
 }
