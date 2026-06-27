@@ -37,6 +37,9 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ name: 'short_description', type: 'text', nullable: true })
+  shortDescription: string;
+
   @Column({ type: 'numeric', precision: 12, scale: 0 })
   price: number;
 
