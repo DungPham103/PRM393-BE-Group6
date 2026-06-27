@@ -82,6 +82,7 @@ CREATE TABLE products (
     brand_id        VARCHAR(36)     NOT NULL REFERENCES brands(brand_id),
     name            VARCHAR(200)    NOT NULL,
     description     TEXT,
+    short_description TEXT,
     price           NUMERIC(12,0)   NOT NULL CHECK (price >= 0),    -- VNĐ
     sale_price      NUMERIC(12,0)            CHECK (sale_price >= 0),
     images          TEXT[]          NOT NULL DEFAULT '{}',           -- mảng URL ảnh

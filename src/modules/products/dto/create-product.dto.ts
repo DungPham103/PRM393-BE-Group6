@@ -58,6 +58,11 @@ export class CreateProductDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  shortDescription?: string;
+
   @ApiProperty({ example: 450000 })
   @IsNotEmpty()
   @IsNumber()

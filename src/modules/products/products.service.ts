@@ -190,6 +190,7 @@ export class ProductsService {
       brandId: dto.brandId,
       name: dto.name,
       description: dto.description,
+      shortDescription: dto.shortDescription,
       price: dto.price,
       salePrice: dto.salePrice,
       images: dto.images || [],
