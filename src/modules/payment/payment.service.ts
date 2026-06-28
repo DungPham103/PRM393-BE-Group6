@@ -76,13 +76,15 @@ export class PaymentService {
       // Ở đây dùng Coupon tạo tự động hoặc tính lại giá, hoặc bỏ qua discount tạm thời trong UI.
       // Cách đơn giản nhất để áp dụng discount cho checkout session là tạo coupon 1 lần.
       // Nhưng để đơn giản, ta trừ thẳng vào sản phẩm đầu tiên hoặc tạo coupon tạm.
+      // Lấy base URL từ biến môi trường, fallback về Render URL
+      const baseUrl = this.configService.get<string>('APP_URL') || 'https://prm393-be.onrender.com';
+
       let sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ['card'],
         line_items: lineItems,
         mode: 'payment',
-        // Thay URL này bằng URL thật của Frontend sau khi hoàn thành/hủy thanh toán
-        success_url: `http://localhost:3000/payment/success?order_id=${orderId}`,
-        cancel_url: `http://localhost:3000/payment/cancel?order_id=${orderId}`,
+        success_url: `${baseUrl}/api/v1/payment/success?order_id=${orderId}`,
+        cancel_url: `${baseUrl}/api/v1/payment/cancel?order_id=${orderId}`,
         client_reference_id: orderId,
         metadata: {
           orderId: order.orderId,
