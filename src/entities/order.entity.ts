@@ -26,6 +26,7 @@ export enum PaymentMethod {
   COD = 'cod',
   BANK_TRANSFER = 'bank_transfer',
   E_WALLET = 'e_wallet',
+  STRIPE = 'stripe',
 }
 
 @Entity('orders')

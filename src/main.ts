@@ -6,7 +6,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   // Serve static assets explicitly for the uploads directory
   app.useStaticAssets(join(__dirname, '..', 'public', 'uploads'), {
