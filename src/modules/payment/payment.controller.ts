@@ -1,20 +1,20 @@
 import {
   Controller,
   Post,
-  Body,
+  Get,
   Param,
+  Query,
   UseGuards,
   Request,
   Headers,
   Req,
-  RawBodyRequest,
+  Res,
   HttpStatus,
   HttpCode,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Request as ExpressRequest } from 'express';
 
 @ApiTags('Payment')
 @Controller('payment')
@@ -31,6 +31,44 @@ export class PaymentController {
   ) {
     const uid = req.user.uid;
     return this.paymentService.createCheckoutSession(orderId, uid);
+  }
+
+  @ApiOperation({ summary: 'Trang hiển thị khi thanh toán thành công' })
+  @Get('success')
+  paymentSuccess(@Query('order_id') orderId: string, @Res() res: any) {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+        <body style="display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;background:#f0fdf4;margin:0;">
+          <div style="text-align:center;padding:40px;">
+            <div style="font-size:64px;">&#10004;</div>
+            <h1 style="color:#16a34a;">Thanh toán thành công!</h1>
+            <p style="color:#666;font-size:18px;">Đơn hàng <strong>${orderId || ''}</strong> đã được thanh toán.</p>
+            <p style="color:#999;">Bạn có thể đóng trang này và quay lại ứng dụng.</p>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+
+  @ApiOperation({ summary: 'Trang hiển thị khi hủy thanh toán' })
+  @Get('cancel')
+  paymentCancel(@Query('order_id') orderId: string, @Res() res: any) {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+        <body style="display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:sans-serif;background:#fef2f2;margin:0;">
+          <div style="text-align:center;padding:40px;">
+            <div style="font-size:64px;">&#10060;</div>
+            <h1 style="color:#dc2626;">Thanh toán đã bị hủy</h1>
+            <p style="color:#666;font-size:18px;">Đơn hàng <strong>${orderId || ''}</strong> chưa được thanh toán.</p>
+            <p style="color:#999;">Bạn có thể đóng trang này và quay lại ứng dụng để thử lại.</p>
+          </div>
+        </body>
+      </html>
+    `);
   }
 
   @ApiOperation({ summary: 'Webhook nhận event từ Stripe (không cần Auth)' })
