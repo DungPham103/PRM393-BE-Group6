@@ -39,6 +39,14 @@ export class OrdersController {
     return this.ordersService.getMyOrders(req.user.uid);
   }
 
+  @Get('all')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: 'Lấy tất cả đơn hàng (Admin only)' })
+  getAllOrders() {
+    return this.ordersService.getAllOrders();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết đơn hàng' })
   getOrderById(

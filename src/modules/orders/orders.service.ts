@@ -231,4 +231,12 @@ export class OrdersService {
     order.status = status;
     return this.orderRepository.save(order);
   }
+
+  // 6. Lấy tất cả đơn hàng (Dành riêng cho Admin)
+  async getAllOrders() {
+    return this.orderRepository.find({
+      relations: { address: true, items: true, user: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
