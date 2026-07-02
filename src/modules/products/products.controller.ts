@@ -159,6 +159,23 @@ export class ProductsController {
     });
   }
 
+  @Get('products/image-proxy')
+  @ApiOperation({ summary: 'Proxy ảnh tránh lỗi CORS trên Web' })
+  proxyImage(@Query('url') url: string, @Res() res: Response) {
+    if (!url) {
+      return res.status(400).send('Missing url parameter');
+    }
+    const protocol = url.startsWith('https') ? require('https') : require('http');
+    protocol.get(url, (response) => {
+      const contentType = response.headers['content-type'] || 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      response.pipe(res);
+    }).on('error', (e) => {
+      res.status(500).send(`Error: ${e.message}`);
+    });
+  }
+
   @Get('products/:id')
   @ApiOperation({ summary: 'Chi tiết sản phẩm + variants' })
   getProductDetail(@Param('id') id: string) {
