@@ -53,7 +53,7 @@ export class MessagesService {
         'user.fullName',
         'user.avatarUrl',
         'MAX(m.sentAt) as last_activity',
-        'COUNT(CASE WHEN m.senderRole = \'customer\' AND m.isRead = false THEN 1 END) as unread_count',
+        'COUNT(CASE WHEN m.sender_role = \'customer\' AND m.is_read = false THEN 1 END) as unread_count',
       ])
       .groupBy('user.uid')
       .addGroupBy('user.email')
