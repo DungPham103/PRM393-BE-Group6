@@ -43,22 +43,23 @@ export class MessagesService {
   // --- ADMIN APIs ---
 
   async getChatSessions() {
-    // Get distinct users who have sent messages, ordered by latest message
+    // Get distinct customer users who have messages, ordered by latest message
     const sessions = await this.messageRepository
       .createQueryBuilder('m')
-      .leftJoinAndSelect('m.user', 'user')
+      .innerJoin('m.user', 'user')
       .select([
-        'user.uid',
-        'user.email',
-        'user.fullName',
-        'user.avatarUrl',
-        'MAX(m.sentAt) as last_activity',
-        'COUNT(CASE WHEN m.sender_role = \'customer\' AND m.is_read = false THEN 1 END) as unread_count',
+        'user.uid AS user_uid',
+        'user.email AS user_email',
+        '"user"."full_name" AS user_full_name',
+        '"user"."avatar_url" AS user_avatar_url',
+        'MAX(m."sent_at") AS last_activity',
+        `COUNT(CASE WHEN m."sender_role" = 'customer' AND m."is_read" = false THEN 1 END) AS unread_count`,
       ])
+      .where('"user"."role" = :role', { role: 'customer' })
       .groupBy('user.uid')
       .addGroupBy('user.email')
-      .addGroupBy('user.fullName')
-      .addGroupBy('user.avatarUrl')
+      .addGroupBy('"user"."full_name"')
+      .addGroupBy('"user"."avatar_url"')
       .orderBy('last_activity', 'DESC')
       .getRawMany();
 
