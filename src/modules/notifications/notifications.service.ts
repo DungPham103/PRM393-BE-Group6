@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Notification } from '../../entities/notification.entity';
+import {
+  Notification,
+  NotificationType,
+} from '../../entities/notification.entity';
 
 @Injectable()
 export class NotificationsService {
@@ -15,6 +18,26 @@ export class NotificationsService {
       where: { uid },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async createNotification(params: {
+    uid: string;
+    type: NotificationType;
+    title: string;
+    body: string;
+    refId?: string;
+    refType?: string;
+  }) {
+    const notif = this.notifRepository.create({
+      uid: params.uid,
+      type: params.type,
+      title: params.title,
+      body: params.body,
+      refId: params.refId,
+      refType: params.refType,
+      isRead: false,
+    });
+    return this.notifRepository.save(notif);
   }
 
   async markAsRead(uid: string, notifId: string) {

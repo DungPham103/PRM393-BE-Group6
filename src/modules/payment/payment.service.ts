@@ -9,6 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { Order, OrderStatus, PaymentMethod } from '../../entities/order.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../../entities/notification.entity';
 
 @Injectable()
 export class PaymentService {
@@ -19,6 +21,7 @@ export class PaymentService {
     private configService: ConfigService,
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
+    private notificationsService: NotificationsService,
   ) {
     const stripeSecret = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecret) {
@@ -128,6 +131,14 @@ export class PaymentService {
           order.status = OrderStatus.CONFIRMED;
           order.paymentMethod = PaymentMethod.STRIPE;
           await this.orderRepository.save(order);
+          await this.notificationsService.createNotification({
+            uid: order.uid,
+            type: NotificationType.ORDER_CONFIRMED,
+            title: 'Thanh toán thành công',
+            body: `Thanh toán cho đơn hàng #${order.orderId.slice(0, 8)} đã thành công. Đơn hàng đã được xác nhận.`,
+            refId: order.orderId,
+            refType: 'order',
+          });
           this.logger.log(`Order ${orderId} has been paid and confirmed via Stripe.`);
         }
       }

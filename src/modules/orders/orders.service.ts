@@ -12,6 +12,8 @@ import { CartItem } from '../../entities/cart-item.entity';
 import { ProductVariant } from '../../entities/product-variant.entity';
 import { Address } from '../../entities/address.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../../entities/notification.entity';
 
 @Injectable()
 export class OrdersService {
@@ -23,6 +25,7 @@ export class OrdersService {
     @InjectRepository(Address)
     private addressRepository: Repository<Address>,
     private dataSource: DataSource,
+    private notificationsService: NotificationsService,
   ) {}
 
   // 1. Đặt hàng sử dụng Database Transaction (QueryRunner)
@@ -138,6 +141,15 @@ export class OrdersService {
       // Commit transaction thành công!
       await queryRunner.commitTransaction();
 
+      await this.notificationsService.createNotification({
+        uid,
+        type: NotificationType.SYSTEM,
+        title: 'Đặt hàng thành công',
+        body: `Đơn hàng #${savedOrder.orderId.slice(0, 8)} đã được ghi nhận. Chúng tôi sẽ xác nhận đơn trong thời gian sớm nhất.`,
+        refId: savedOrder.orderId,
+        refType: 'order',
+      });
+
       // Trả về đơn hàng kèm chi tiết
       return this.getOrderById(uid, savedOrder.orderId);
     } catch (error) {
@@ -209,6 +221,14 @@ export class OrdersService {
       await queryRunner.manager.save(order);
 
       await queryRunner.commitTransaction();
+      await this.notificationsService.createNotification({
+        uid,
+        type: NotificationType.ORDER_CANCELLED,
+        title: 'Đơn hàng đã bị hủy',
+        body: `Đơn hàng #${order.orderId.slice(0, 8)} đã được hủy thành công.`,
+        refId: order.orderId,
+        refType: 'order',
+      });
       return order;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -228,8 +248,18 @@ export class OrdersService {
       throw new NotFoundException('Không tìm thấy đơn hàng.');
     }
 
+    const oldStatus = order.status;
     order.status = status;
-    return this.orderRepository.save(order);
+    const savedOrder = await this.orderRepository.save(order);
+
+    if (oldStatus !== status) {
+      await this.notificationsService.createNotification({
+        uid: savedOrder.uid,
+        ...this.buildOrderStatusNotification(savedOrder.orderId, status),
+      });
+    }
+
+    return savedOrder;
   }
 
   // 6. Lấy tất cả đơn hàng (Dành riêng cho Admin)
@@ -238,5 +268,67 @@ export class OrdersService {
       relations: { address: true, items: true, user: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  private buildOrderStatusNotification(orderId: string, status: OrderStatus) {
+    const shortId = orderId.slice(0, 8);
+    switch (status) {
+      case OrderStatus.CONFIRMED:
+        return {
+          type: NotificationType.ORDER_CONFIRMED,
+          title: 'Đơn hàng đã được xác nhận',
+          body: `Đơn hàng #${shortId} đã được xác nhận và đang chuẩn bị xử lý.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      case OrderStatus.PROCESSING:
+        return {
+          type: NotificationType.SYSTEM,
+          title: 'Đơn hàng đang được chuẩn bị',
+          body: `Đơn hàng #${shortId} đang được đóng gói tại SportZone.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      case OrderStatus.SHIPPING:
+        return {
+          type: NotificationType.ORDER_SHIPPING,
+          title: 'Đơn hàng đang giao tới bạn',
+          body: `Đơn hàng #${shortId} đã rời kho và đang trên đường giao tới bạn.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      case OrderStatus.DELIVERED:
+        return {
+          type: NotificationType.ORDER_DELIVERED,
+          title: 'Đơn hàng đã giao thành công',
+          body: `Đơn hàng #${shortId} đã được giao. Bạn có thể đánh giá sản phẩm sau khi kiểm tra.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      case OrderStatus.COMPLETED:
+        return {
+          type: NotificationType.ORDER_DELIVERED,
+          title: 'Đơn hàng đã hoàn tất',
+          body: `Đơn hàng #${shortId} đã hoàn tất. Cảm ơn bạn đã mua sắm tại SportZone.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      case OrderStatus.CANCELLED:
+        return {
+          type: NotificationType.ORDER_CANCELLED,
+          title: 'Đơn hàng đã bị hủy',
+          body: `Đơn hàng #${shortId} đã được chuyển sang trạng thái hủy.`,
+          refId: orderId,
+          refType: 'order',
+        };
+      default:
+        return {
+          type: NotificationType.SYSTEM,
+          title: 'Trạng thái đơn hàng đã cập nhật',
+          body: `Đơn hàng #${shortId} đã được cập nhật trạng thái.`,
+          refId: orderId,
+          refType: 'order',
+        };
+    }
   }
 }
