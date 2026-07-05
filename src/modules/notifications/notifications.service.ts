@@ -53,4 +53,18 @@ export class NotificationsService {
     await this.notifRepository.update({ uid, isRead: false }, { isRead: true });
     return { message: 'Đã đánh dấu tất cả thông báo đã đọc.' };
   }
+
+  async deleteNotification(uid: string, notifId: string) {
+    const notif = await this.notifRepository.findOne({
+      where: { notifId, uid },
+    });
+    if (!notif) throw new NotFoundException('Thông báo không tồn tại.');
+    await this.notifRepository.remove(notif);
+    return { message: 'Đã xóa thông báo.' };
+  }
+
+  async clearAll(uid: string) {
+    await this.notifRepository.delete({ uid });
+    return { message: 'Đã xóa tất cả thông báo.' };
+  }
 }
