@@ -109,8 +109,8 @@ export class OrdersService {
         orderItemsToCreate.push(orderItem);
       }
 
-      // d. Tính toán tổng chi phí (ở đây tạm tính ship 30k cố định, chưa áp dụng voucher)
-      const shippingFee = 30000;
+      // d. Tính toán tổng chi phí. App gửi shippingFee đã tính theo khoảng cách.
+      const shippingFee = dto.shippingFee ?? 30000;
       const discount = 0;
       const total = subtotal + shippingFee - discount;
 

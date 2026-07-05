@@ -1,9 +1,13 @@
 import {
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PaymentMethod } from '../../../entities/order.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -32,4 +36,15 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString({ message: 'Ghi chú phải là chuỗi ký tự' })
   note?: string;
+
+  @ApiPropertyOptional({
+    description: 'Phí vận chuyển đã tính từ app theo khoảng cách',
+    example: 25000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Phí vận chuyển không hợp lệ' })
+  @Min(0, { message: 'Phí vận chuyển không được âm' })
+  @Max(200000, { message: 'Phí vận chuyển vượt giới hạn cho phép' })
+  shippingFee?: number;
 }
