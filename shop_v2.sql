@@ -250,6 +250,55 @@ CREATE TABLE store_locations (
 );
 
 -- ============================================================
+--  14. MEMBERSHIP TIER – Thêm bậc thành viên vào users
+-- ============================================================
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS membership_tier VARCHAR(20) NOT NULL DEFAULT 'bronze'
+        CHECK (membership_tier IN ('bronze', 'silver', 'gold', 'platinum')),
+    ADD COLUMN IF NOT EXISTS total_spent NUMERIC(14,0) NOT NULL DEFAULT 0;
+
+-- ============================================================
+--  15. VOUCHERS – Mã giảm giá theo bậc thành viên
+-- ============================================================
+CREATE TABLE vouchers (
+    voucher_id      VARCHAR(36)     PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    code            VARCHAR(50)     NOT NULL UNIQUE,
+    description     TEXT,
+    discount_type   VARCHAR(20)     NOT NULL CHECK (discount_type IN ('percentage', 'fixed_amount')),
+    discount_value  NUMERIC(12,0)   NOT NULL CHECK (discount_value > 0),
+    max_discount    NUMERIC(12,0),                           -- Giới hạn giảm tối đa (cho percentage)
+    min_order_value NUMERIC(12,0)   NOT NULL DEFAULT 0,      -- Đơn tối thiểu
+    target_tier     VARCHAR(20)     NOT NULL DEFAULT 'bronze'
+                        CHECK (target_tier IN ('bronze', 'silver', 'gold', 'platinum')),
+    usage_limit     INTEGER         DEFAULT NULL,             -- Giới hạn tổng số lần sử dụng
+    used_count      INTEGER         NOT NULL DEFAULT 0,
+    starts_at       TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ,
+    is_active       BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+--  16. USER VOUCHERS – Tracking voucher đã dùng
+-- ============================================================
+CREATE TABLE user_vouchers (
+    id              VARCHAR(36)     PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    uid             VARCHAR(36)     NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    voucher_id      VARCHAR(36)     NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+    order_id        VARCHAR(36)     REFERENCES orders(order_id) ON DELETE SET NULL,
+    used_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    UNIQUE (uid, voucher_id)                                  -- Mỗi user chỉ dùng 1 voucher 1 lần
+);
+
+-- Thêm voucher_id vào orders
+ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS voucher_id VARCHAR(36) REFERENCES vouchers(voucher_id) ON DELETE SET NULL;
+
+-- Thêm 'new_voucher' vào notification_type enum
+ALTER TYPE notification_type ADD VALUE IF NOT EXISTS 'new_voucher';
+
+-- ============================================================
 --  INDEXES (tăng tốc query thường dùng)
 -- ============================================================
 -- Products
@@ -286,6 +335,15 @@ CREATE INDEX idx_messages_sent        ON messages(sent_at DESC);
 -- Addresses
 CREATE INDEX idx_addresses_uid        ON addresses(uid);
 
+-- Vouchers
+CREATE INDEX idx_vouchers_tier         ON vouchers(target_tier);
+CREATE INDEX idx_vouchers_active       ON vouchers(is_active, starts_at, expires_at);
+CREATE INDEX idx_vouchers_code         ON vouchers(code);
+
+-- User Vouchers
+CREATE INDEX idx_user_vouchers_uid     ON user_vouchers(uid);
+CREATE INDEX idx_user_vouchers_voucher ON user_vouchers(voucher_id);
+
 -- ============================================================
 --  TRIGGERS – tự động cập nhật updated_at
 -- ============================================================
@@ -311,6 +369,10 @@ CREATE TRIGGER trg_carts_updated
 
 CREATE TRIGGER trg_orders_updated
     BEFORE UPDATE ON orders
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+CREATE TRIGGER trg_vouchers_updated
+    BEFORE UPDATE ON vouchers
     FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
 -- ============================================================

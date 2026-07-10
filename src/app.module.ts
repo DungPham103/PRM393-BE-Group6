@@ -12,6 +12,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { MessagesModule } from './modules/messages/messages.module';
 import { MailModule } from './modules/mail/mail.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { VouchersModule } from './modules/vouchers/vouchers.module';
 
 // Import tất cả các entities một cách tường minh để tránh lỗi khởi tạo metadata
 import { User } from './entities/user.entity';
@@ -27,6 +28,8 @@ import { OrderItem } from './entities/order-item.entity';
 import { Notification } from './entities/notification.entity';
 import { Message } from './entities/message.entity';
 import { StoreLocation } from './entities/store-location.entity';
+import { Voucher } from './entities/voucher.entity';
+import { UserVoucher } from './entities/user-voucher.entity';
 
 @Module({
   imports: [
@@ -59,6 +62,8 @@ import { StoreLocation } from './entities/store-location.entity';
           Notification,
           Message,
           StoreLocation,
+          Voucher,
+          UserVoucher,
         ],
         // synchronize: false để tránh việc TypeORM tự động sửa schema đã chạy từ shop_v2.sql
         synchronize: false,
@@ -80,6 +85,7 @@ import { StoreLocation } from './entities/store-location.entity';
     MessagesModule,
     MailModule,
     PaymentModule,
+    VouchersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -54,6 +54,23 @@ export class User {
   @Column({ name: 'otp_expires_at', type: 'timestamptz', nullable: true })
   otpExpiresAt: Date | null;
 
+  @Column({
+    name: 'membership_tier',
+    type: 'varchar',
+    length: 20,
+    default: 'bronze',
+  })
+  membershipTier: string;
+
+  @Column({
+    name: 'total_spent',
+    type: 'numeric',
+    precision: 14,
+    scale: 0,
+    default: 0,
+  })
+  totalSpent: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
