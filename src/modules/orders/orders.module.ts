@@ -9,12 +9,15 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { VouchersModule } from '../vouchers/vouchers.module';
 
+import { HttpModule } from '@nestjs/axios';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderItem, Address]),
     AuthModule,
     NotificationsModule,
     VouchersModule,
+    HttpModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

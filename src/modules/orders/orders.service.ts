@@ -16,6 +16,9 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../../entities/notification.entity';
 import { VouchersService } from '../vouchers/vouchers.service';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class OrdersService {
@@ -29,6 +32,8 @@ export class OrdersService {
     private dataSource: DataSource,
     private notificationsService: NotificationsService,
     private vouchersService: VouchersService,
+    private httpService: HttpService,
+    private configService: ConfigService,
   ) {}
 
   // 1. Đặt hàng sử dụng Database Transaction (QueryRunner)
@@ -136,8 +141,8 @@ export class OrdersService {
         voucherId = voucher.voucherId;
       }
 
-      // e. Tính toán tổng chi phí. App gửi shippingFee đã tính theo khoảng cách.
-      const shippingFee = dto.shippingFee ?? 30000;
+      // e. Tính toán phí vận chuyển tự động bằng Backend
+      const shippingFee = await this.calculateShippingFee(address);
       const total = subtotal + shippingFee - discount;
 
       // f. Tạo Đơn hàng (Order)
@@ -305,6 +310,60 @@ export class OrdersService {
       relations: { address: true, items: true, user: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  private async calculateShippingFee(address: Address): Promise<number> {
+    const token = this.configService.get<string>('MAPBOX_TOKEN');
+    if (!token) {
+      return 30000; // Fallback nếu không có token
+    }
+
+    const query = `${address.street}, ${address.ward ? address.ward + ', ' : ''}${address.district}, ${address.city}`;
+    const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(query)}&country=vn&limit=1&language=vi&access_token=${token}`;
+
+    try {
+      const response = await firstValueFrom(this.httpService.get(url, { timeout: 10000 }));
+      const features = response.data?.features;
+      if (!features || features.length === 0) {
+        return 30000; // Fallback nếu không tìm thấy tọa độ
+      }
+
+      const coordinates = features[0].geometry.coordinates;
+      const userLng = coordinates[0];
+      const userLat = coordinates[1];
+
+      // Tọa độ shop
+      const shopLat = 10.84118;
+      const shopLng = 106.80986;
+
+      // Tính khoảng cách bằng công thức Haversine
+      const R = 6371; // Bán kính trái đất tính bằng km
+      const dLat = (userLat - shopLat) * (Math.PI / 180);
+      const dLng = (userLng - shopLng) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(shopLat * (Math.PI / 180)) * Math.cos(userLat * (Math.PI / 180)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distanceKm = R * c;
+
+      // Công thức tính phí ship (Fix lỗi logic baseFee 15k)
+      const baseFee = 15000;
+      const extraPerKm = 5000;
+      const maxFee = 40000;
+
+      const extraKm = distanceKm <= 2 ? 0 : Math.ceil(distanceKm - 2);
+      let fee = baseFee + extraKm * extraPerKm;
+
+      if (fee > maxFee) {
+        fee = maxFee;
+      }
+
+      return fee;
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error.message);
+      return 30000; // Fallback 30k nếu lỗi API
+    }
   }
 
   // ─── Cập nhật total_spent và kiểm tra nâng bậc ───
