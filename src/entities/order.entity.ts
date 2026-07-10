@@ -11,6 +11,7 @@ import {
 import { User } from './user.entity';
 import { Address } from './address.entity';
 import { OrderItem } from './order-item.entity';
+import { Voucher } from './voucher.entity';
 
 export enum OrderStatus {
   PENDING = 'pending',
@@ -83,6 +84,13 @@ export class Order {
 
   @Column({ type: 'text', nullable: true })
   note: string;
+
+  @Column({ name: 'voucher_id', nullable: true })
+  voucherId: string;
+
+  @ManyToOne(() => Voucher, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'voucher_id' })
+  voucher: Voucher;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -15,6 +15,7 @@ export enum NotificationType {
   ORDER_CANCELLED = 'order_cancelled',
   PROMOTION = 'promotion',
   NEW_PRODUCT = 'new_product',
+  NEW_VOUCHER = 'new_voucher',
   SYSTEM = 'system',
 }
 

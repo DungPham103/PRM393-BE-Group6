@@ -11,9 +11,11 @@ import { Cart } from '../../entities/cart.entity';
 import { CartItem } from '../../entities/cart-item.entity';
 import { ProductVariant } from '../../entities/product-variant.entity';
 import { Address } from '../../entities/address.entity';
+import { User } from '../../entities/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../../entities/notification.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
 
 @Injectable()
 export class OrdersService {
@@ -26,6 +28,7 @@ export class OrdersService {
     private addressRepository: Repository<Address>,
     private dataSource: DataSource,
     private notificationsService: NotificationsService,
+    private vouchersService: VouchersService,
   ) {}
 
   // 1. Đặt hàng sử dụng Database Transaction (QueryRunner)
@@ -109,12 +112,35 @@ export class OrdersService {
         orderItemsToCreate.push(orderItem);
       }
 
-      // d. Tính toán tổng chi phí. App gửi shippingFee đã tính theo khoảng cách.
+      // d. Xử lý voucher (nếu có)
+      let discount = 0;
+      let voucherId: string | undefined = undefined;
+
+      if (dto.voucherId) {
+        // Lấy voucher từ DB qua voucherId
+        const voucher = await this.vouchersService['voucherRepository'].findOne({
+          where: { voucherId: dto.voucherId, isActive: true },
+        });
+
+        if (!voucher) {
+          throw new BadRequestException('Voucher không tồn tại hoặc đã bị vô hiệu hóa.');
+        }
+
+        // Validate & tính discount
+        const result = await this.vouchersService.validateAndCalculateDiscount(
+          voucher.code,
+          uid,
+          subtotal,
+        );
+        discount = result.discountAmount;
+        voucherId = voucher.voucherId;
+      }
+
+      // e. Tính toán tổng chi phí. App gửi shippingFee đã tính theo khoảng cách.
       const shippingFee = dto.shippingFee ?? 30000;
-      const discount = 0;
       const total = subtotal + shippingFee - discount;
 
-      // e. Tạo Đơn hàng (Order)
+      // f. Tạo Đơn hàng (Order)
       const order = queryRunner.manager.create(Order, {
         uid,
         addressId: dto.addressId,
@@ -125,21 +151,27 @@ export class OrdersService {
         discount,
         total,
         note: dto.note,
+        voucherId,
       });
 
       const savedOrder = await queryRunner.manager.save(order);
 
-      // f. Lưu các OrderItem gắn với Order vừa tạo
+      // g. Lưu các OrderItem gắn với Order vừa tạo
       for (const orderItem of orderItemsToCreate) {
         orderItem.orderId = savedOrder.orderId;
       }
       await queryRunner.manager.save(OrderItem, orderItemsToCreate);
 
-      // g. Xóa tất cả sản phẩm trong giỏ hàng
+      // h. Xóa tất cả sản phẩm trong giỏ hàng
       await queryRunner.manager.remove(CartItem, cartItems);
 
       // Commit transaction thành công!
       await queryRunner.commitTransaction();
+
+      // i. Đánh dấu voucher đã sử dụng (ngoài transaction)
+      if (voucherId) {
+        await this.vouchersService.markVoucherUsed(uid, voucherId, savedOrder.orderId);
+      }
 
       await this.notificationsService.createNotification({
         uid,
@@ -257,6 +289,11 @@ export class OrdersService {
         uid: savedOrder.uid,
         ...this.buildOrderStatusNotification(savedOrder.orderId, status),
       });
+
+      // Khi đơn hàng hoàn tất → cập nhật total_spent & kiểm tra nâng bậc
+      if (status === OrderStatus.COMPLETED) {
+        await this.updateTotalSpentAndCheckTier(savedOrder.uid, savedOrder.total);
+      }
     }
 
     return savedOrder;
@@ -268,6 +305,25 @@ export class OrdersService {
       relations: { address: true, items: true, user: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  // ─── Cập nhật total_spent và kiểm tra nâng bậc ───
+  private async updateTotalSpentAndCheckTier(uid: string, orderTotal: number) {
+    try {
+      // Cộng total vào total_spent
+      await this.dataSource
+        .createQueryBuilder()
+        .update(User)
+        .set({ totalSpent: () => `total_spent + ${Number(orderTotal)}` })
+        .where('uid = :uid', { uid })
+        .execute();
+
+      // Kiểm tra & nâng bậc
+      await this.vouchersService.checkAndUpgradeTier(uid);
+    } catch (error) {
+      // Không throw lỗi ở đây để không ảnh hưởng order flow
+      console.error('Error updating tier:', error);
+    }
   }
 
   private buildOrderStatusNotification(orderId: string, status: OrderStatus) {

@@ -47,4 +47,12 @@ export class CreateOrderDto {
   @Min(0, { message: 'Phí vận chuyển không được âm' })
   @Max(200000, { message: 'Phí vận chuyển vượt giới hạn cho phép' })
   shippingFee?: number;
+
+  @ApiPropertyOptional({
+    description: 'ID voucher giảm giá muốn áp dụng',
+    example: 'voucher-001',
+  })
+  @IsOptional()
+  @IsString({ message: 'ID voucher không hợp lệ' })
+  voucherId?: string;
 }
