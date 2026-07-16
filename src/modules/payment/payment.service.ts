@@ -54,7 +54,7 @@ export class PaymentService {
           currency: 'vnd',
           product_data: {
             name: `${item.productName} (Size: ${item.size} - Màu: ${item.colorName})`,
-            images: item.imageUrl ? [item.imageUrl] : [],
+            images: (item.imageUrl && item.imageUrl.startsWith('http')) ? [item.imageUrl] : [],
           },
           unit_amount: Number(item.unitPrice),
         },
