@@ -25,6 +25,11 @@ export class ProductVariantDto {
   @IsNumber()
   @IsNotEmpty()
   stockQty: number;
+
+  @ApiPropertyOptional({ example: 'https://example.com/red-variant.jpg' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class CreateProductDto {

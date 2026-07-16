@@ -209,6 +209,7 @@ export class ProductsService {
           colorName: v.colorName,
           stockQty: v.stockQty,
           sku: `${savedProduct.productId.substring(0, 8)}-${v.size}-${v.colorName}`.toUpperCase(),
+          imageUrl: v.imageUrl,
         });
       });
       await this.variantRepository.save(variantsToSave);
@@ -218,6 +219,7 @@ export class ProductsService {
   }
 
   async updateProduct(productId: string, dto: UpdateProductDto) {
+    console.log('Incoming update DTO for product:', productId, JSON.stringify(dto));
     const product = await this.productRepository.findOne({
       where: { productId },
     });
@@ -247,8 +249,58 @@ export class ProductsService {
       }
     }
 
-    Object.assign(product, dto);
-    return this.productRepository.save(product);
+    const { variants, ...productData } = dto;
+    Object.assign(product, productData);
+    await this.productRepository.save(product);
+
+    if (variants) {
+      const currentVariants = await this.variantRepository.find({
+        where: { productId },
+      });
+
+      // Update or create new ones
+      for (const v of variants) {
+        const existing = currentVariants.find(
+          (curr) =>
+            curr.size === v.size &&
+            curr.colorName.toLowerCase() === v.colorName.toLowerCase(),
+        );
+
+        if (existing) {
+          existing.stockQty = v.stockQty;
+          existing.isActive = true;
+          existing.imageUrl = v.imageUrl;
+          await this.variantRepository.save(existing);
+        } else {
+          const newVar = this.variantRepository.create({
+            productId: product.productId,
+            size: v.size,
+            colorName: v.colorName,
+            stockQty: v.stockQty,
+            sku: `${product.productId.substring(0, 8)}-${v.size}-${v.colorName}`.toUpperCase(),
+            imageUrl: v.imageUrl,
+            isActive: true,
+          });
+          await this.variantRepository.save(newVar);
+        }
+      }
+
+      // Deactivate variants not in the new list
+      for (const curr of currentVariants) {
+        const inNewList = variants.some(
+          (v) =>
+            v.size === curr.size &&
+            v.colorName.toLowerCase() === curr.colorName.toLowerCase(),
+        );
+
+        if (!inNewList) {
+          curr.isActive = false;
+          await this.variantRepository.save(curr);
+        }
+      }
+    }
+
+    return this.getProductDetail(productId);
   }
 
   async deleteProduct(productId: string) {
