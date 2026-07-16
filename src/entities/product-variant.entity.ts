@@ -47,7 +47,7 @@ export class ProductVariant {
   extraPrice: number;
 
   @Column({ name: 'image_url', type: 'text', nullable: true })
-  imageUrl: string;
+  imageUrl?: string;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
