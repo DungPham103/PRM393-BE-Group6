@@ -275,6 +275,86 @@ export class OrdersService {
     }
   }
 
+  // 4b. Xóa đơn hàng thanh toán hụt (Stripe abandon) - KHÔNG LƯU LỊCH SỬ, HOÀN KHO, HOÀN GIỎ HÀNG
+  async abandonOrder(uid: string, orderId: string) {
+    const order = await this.orderRepository.findOne({
+      where: { orderId, uid },
+      relations: { items: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng.');
+    }
+
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang chờ xác nhận.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Hoàn trả stock
+      for (const item of order.items) {
+        const variant = await queryRunner.manager.findOne(ProductVariant, {
+          where: { variantId: item.variantId },
+        });
+        if (variant) {
+          variant.stockQty += item.quantity;
+          await queryRunner.manager.save(variant);
+        }
+      }
+
+      // 2. Hoàn trả cart
+      let cart = await queryRunner.manager.findOne(Cart, { where: { uid } });
+      if (!cart) {
+        cart = queryRunner.manager.create(Cart, { uid });
+        await queryRunner.manager.save(cart);
+      }
+
+      for (const item of order.items) {
+        let cartItem = await queryRunner.manager.findOne(CartItem, {
+          where: { cartId: cart.cartId, variantId: item.variantId }
+        });
+        if (cartItem) {
+          cartItem.quantity += item.quantity;
+        } else {
+          cartItem = queryRunner.manager.create(CartItem, {
+            cartId: cart.cartId,
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          });
+        }
+        await queryRunner.manager.save(cartItem);
+      }
+
+      // 3. Xóa OrderItem
+      await queryRunner.manager.remove(OrderItem, order.items);
+      
+      // 4. Xóa Order
+      await queryRunner.manager.remove(Order, order);
+
+      // Nếu có dùng voucher thì rollback (dùng raw query)
+      if (order.voucherId) {
+        await queryRunner.manager.query(
+          `UPDATE user_vouchers SET is_used = false, used_at = NULL, order_id = NULL WHERE uid = $1 AND voucher_id = $2`,
+          [uid, order.voucherId]
+        ).catch(() => {}); // ignore error if table doesn't exist/match
+      }
+
+      await queryRunner.commitTransaction();
+      return { message: 'Đã hủy hoàn toàn giao dịch thanh toán' };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   // 5. Cập nhật trạng thái đơn hàng (Dành riêng cho Admin)
   async updateOrderStatus(orderId: string, status: OrderStatus) {
     const order = await this.orderRepository.findOne({
