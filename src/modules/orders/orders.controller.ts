@@ -65,6 +65,15 @@ export class OrdersController {
     return this.ordersService.cancelOrder(req.user.uid, id);
   }
 
+  @Delete(':id/abandon')
+  @ApiOperation({ summary: 'Xóa hoàn toàn đơn hàng thanh toán hụt (khôi phục giỏ hàng và tồn kho)' })
+  abandonOrder(
+    @Request() req: { user: { uid: string } },
+    @Param('id') id: string,
+  ) {
+    return this.ordersService.abandonOrder(req.user.uid, id);
+  }
+
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles('admin')
