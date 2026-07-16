@@ -28,7 +28,7 @@ export class PaymentService {
       this.logger.warn('STRIPE_SECRET_KEY is not defined in environment variables.');
     }
     this.stripe = new Stripe(stripeSecret || '', {
-      apiVersion: '2025-01-27.acacia' as any, // specify recent stable version, might need to suppress warning if type is strict
+      apiVersion: '2026-03-25.dahlia' as any,
     });
   }
 
