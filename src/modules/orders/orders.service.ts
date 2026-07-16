@@ -142,7 +142,7 @@ export class OrdersService {
       }
 
       // e. Tính toán phí vận chuyển tự động bằng Backend
-      const shippingFee = await this.calculateShippingFee(address);
+      const shippingFee = await this.calculateShippingFee(address, dto);
       const total = subtotal + shippingFee - discount;
 
       // f. Tạo Đơn hàng (Order)
@@ -392,7 +392,20 @@ export class OrdersService {
     });
   }
 
-  private async calculateShippingFee(address: Address): Promise<number> {
+  private async calculateShippingFee(
+    address: Address,
+    dto?: CreateOrderDto,
+  ): Promise<number> {
+    if (
+      dto?.deliveryLatitude !== undefined &&
+      dto.deliveryLongitude !== undefined
+    ) {
+      return this.calculateShippingFeeFromCoordinates(
+        dto.deliveryLatitude,
+        dto.deliveryLongitude,
+      );
+    }
+
     const token = this.configService.get<string>('MAPBOX_TOKEN');
     if (!token) {
       return 30000; // Fallback nếu không có token
@@ -433,17 +446,38 @@ export class OrdersService {
       const maxFee = 40000;
 
       const extraKm = distanceKm <= 2 ? 0 : Math.ceil(distanceKm - 2);
-      let fee = baseFee + extraKm * extraPerKm;
+      const fee = baseFee + extraKm * extraPerKm;
 
-      if (fee > maxFee) {
-        fee = maxFee;
-      }
-
-      return fee;
+      return fee > maxFee ? maxFee : fee;
     } catch (error) {
       console.error('Error calculating shipping fee:', error.message);
       return 30000; // Fallback 30k nếu lỗi API
     }
+  }
+
+  private calculateShippingFeeFromCoordinates(
+    userLat: number,
+    userLng: number,
+  ): number {
+    const shopLat = 10.84118;
+    const shopLng = 106.80986;
+    const earthRadiusKm = 6371;
+    const dLat = (userLat - shopLat) * (Math.PI / 180);
+    const dLng = (userLng - shopLng) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(shopLat * (Math.PI / 180)) *
+        Math.cos(userLat * (Math.PI / 180)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceKm = earthRadiusKm * c;
+    const baseFee = 15000;
+    const extraPerKm = 5000;
+    const maxFee = 40000;
+    const extraKm = distanceKm <= 2 ? 0 : Math.ceil(distanceKm - 2);
+    const fee = baseFee + extraKm * extraPerKm;
+    return fee > maxFee ? maxFee : fee;
   }
 
   // ─── Cập nhật total_spent và kiểm tra nâng bậc ───

@@ -37,7 +37,6 @@ export class CreateOrderDto {
   @IsString({ message: 'Ghi chú phải là chuỗi ký tự' })
   note?: string;
 
-
   @ApiPropertyOptional({
     description: 'ID voucher giảm giá muốn áp dụng',
     example: 'voucher-001',
@@ -45,4 +44,46 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString({ message: 'ID voucher không hợp lệ' })
   voucherId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Delivery latitude selected or geocoded by the app',
+    example: 10.84118,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Delivery latitude is invalid' })
+  @Min(-90)
+  @Max(90)
+  deliveryLatitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Delivery longitude selected or geocoded by the app',
+    example: 106.80986,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Delivery longitude is invalid' })
+  @Min(-180)
+  @Max(180)
+  deliveryLongitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Delivery distance in kilometers estimated by the app',
+    example: 8.5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Delivery distance is invalid' })
+  @Min(0)
+  deliveryDistanceKm?: number;
+
+  @ApiPropertyOptional({
+    description: 'Shipping fee displayed by the app; backend recalculates it',
+    example: 45000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Shipping fee is invalid' })
+  @Min(0)
+  shippingFee?: number;
 }

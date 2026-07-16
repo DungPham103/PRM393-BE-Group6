@@ -22,7 +22,9 @@ export class PaymentService {
   ) {
     const stripeSecret = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecret) {
-      this.logger.warn('STRIPE_SECRET_KEY is not defined in environment variables.');
+      this.logger.warn(
+        'STRIPE_SECRET_KEY is not defined in environment variables.',
+      );
     }
     this.stripe = new Stripe(stripeSecret || '', {
       apiVersion: '2026-03-25.dahlia' as any,
@@ -46,17 +48,21 @@ export class PaymentService {
         );
       }
 
-      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.map((item) => ({
-        price_data: {
-          currency: 'vnd',
-          product_data: {
-            name: `${item.productName} (Size: ${item.size} - Màu: ${item.colorName})`,
-            images: (item.imageUrl && item.imageUrl.startsWith('http')) ? [item.imageUrl] : [],
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+        order.items.map((item) => ({
+          price_data: {
+            currency: 'vnd',
+            product_data: {
+              name: `${item.productName} (Size: ${item.size} - Màu: ${item.colorName})`,
+              images:
+                item.imageUrl && item.imageUrl.startsWith('http')
+                  ? [item.imageUrl]
+                  : [],
+            },
+            unit_amount: Number(item.unitPrice),
           },
-          unit_amount: Number(item.unitPrice),
-        },
-        quantity: item.quantity,
-      }));
+          quantity: item.quantity,
+        }));
 
       // Thêm phí vận chuyển như một line item nếu có
       if (order.shippingFee > 0) {
@@ -77,7 +83,9 @@ export class PaymentService {
       // Cách đơn giản nhất để áp dụng discount cho checkout session là tạo coupon 1 lần.
       // Nhưng để đơn giản, ta trừ thẳng vào sản phẩm đầu tiên hoặc tạo coupon tạm.
       // Lấy base URL từ biến môi trường, fallback về Render URL
-      const baseUrl = this.configService.get<string>('APP_URL') || 'https://prm393-be.onrender.com';
+      const baseUrl =
+        this.configService.get<string>('APP_URL') ||
+        'https://prm393-be.onrender.com';
 
       let sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ['card'],
@@ -99,12 +107,16 @@ export class PaymentService {
       };
     } catch (error) {
       this.logger.error('Error creating checkout session', error);
-      throw new InternalServerErrorException('Không thể tạo phiên thanh toán Stripe');
+      throw new InternalServerErrorException(
+        'Không thể tạo phiên thanh toán Stripe',
+      );
     }
   }
 
   async handleWebhook(signature: string, body: Buffer) {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
     let event: Stripe.Event;
 
     try {
@@ -114,7 +126,9 @@ export class PaymentService {
         webhookSecret || '',
       );
     } catch (err: any) {
-      this.logger.error(`Webhook signature verification failed: ${err.message}`);
+      this.logger.error(
+        `Webhook signature verification failed: ${err.message}`,
+      );
       throw new InternalServerErrorException(`Webhook Error: ${err.message}`);
     }
 
@@ -123,7 +137,9 @@ export class PaymentService {
       const orderId = session.client_reference_id || session.metadata?.orderId;
 
       if (orderId) {
-        const order = await this.orderRepository.findOne({ where: { orderId } });
+        const order = await this.orderRepository.findOne({
+          where: { orderId },
+        });
         if (order) {
           order.paymentMethod = PaymentMethod.STRIPE;
           await this.orderRepository.save(order);
