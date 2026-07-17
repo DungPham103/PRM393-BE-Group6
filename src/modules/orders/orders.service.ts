@@ -19,14 +19,20 @@ import { VouchersService } from '../vouchers/vouchers.service';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import Stripe from 'stripe';
 
 @Injectable()
 export class OrdersService {
+  private stripe: Stripe;
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(CartItem)
+    private cartItemRepository: Repository<CartItem>,
     @InjectRepository(Address)
     private addressRepository: Repository<Address>,
     private dataSource: DataSource,
@@ -34,7 +40,12 @@ export class OrdersService {
     private vouchersService: VouchersService,
     private httpService: HttpService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    const stripeSecret = this.configService.get<string>('STRIPE_SECRET_KEY');
+    this.stripe = new Stripe(stripeSecret || '', {
+      apiVersion: '2026-03-25.dahlia' as any,
+    });
+  }
 
   // 1. Đặt hàng sử dụng Database Transaction (QueryRunner)
   async createOrder(uid: string, dto: CreateOrderDto) {
@@ -221,7 +232,7 @@ export class OrdersService {
     return order;
   }
 
-  // 4. Hủy đơn hàng (Chỉ khi đơn ở trạng thái 'pending')
+  // 4. Hủy đơn hàng / Yêu cầu hủy
   async cancelOrder(uid: string, orderId: string) {
     const order = await this.orderRepository.findOne({
       where: { orderId, uid },
@@ -232,41 +243,62 @@ export class OrdersService {
       throw new NotFoundException('Không tìm thấy đơn hàng.');
     }
 
-    if (order.status !== OrderStatus.PENDING) {
+    if (
+      order.status !== OrderStatus.PENDING &&
+      order.status !== OrderStatus.CONFIRMED &&
+      order.status !== OrderStatus.PROCESSING
+    ) {
       throw new BadRequestException(
-        'Chỉ có thể hủy đơn hàng khi đang chờ xác nhận.',
+        'Chỉ có thể hủy đơn hàng đang chờ xác nhận hoặc chờ lấy hàng.',
       );
     }
 
-    // Hoàn trả lại số lượng tồn kho của các biến thể
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      for (const item of order.items) {
-        const variant = await queryRunner.manager.findOne(ProductVariant, {
-          where: { variantId: item.variantId },
+      if (order.paymentMethod === PaymentMethod.STRIPE) {
+        // Nếu thanh toán Stripe, chuyển sang yêu cầu hủy, KHÔNG hoàn kho vội (chờ admin)
+        order.status = OrderStatus.CANCEL_REQUESTED;
+        await queryRunner.manager.save(order);
+        await queryRunner.commitTransaction();
+
+        await this.notificationsService.createNotification({
+          uid,
+          type: NotificationType.ORDER_CANCELLED, // Dùng tạm type này
+          title: 'Đã gửi yêu cầu hủy',
+          body: `Yêu cầu hủy đơn #${order.orderId.slice(0, 8)} đã được gửi, chờ hệ thống hoàn tiền.`,
+          refId: order.orderId,
+          refType: 'order',
         });
-        if (variant) {
-          variant.stockQty += item.quantity;
-          await queryRunner.manager.save(variant);
+        return order;
+      } else {
+        // Hoàn trả lại số lượng tồn kho của các biến thể
+        for (const item of order.items) {
+          const variant = await queryRunner.manager.findOne(ProductVariant, {
+            where: { variantId: item.variantId },
+          });
+          if (variant) {
+            variant.stockQty += item.quantity;
+            await queryRunner.manager.save(variant);
+          }
         }
+
+        order.status = OrderStatus.CANCELLED;
+        await queryRunner.manager.save(order);
+        await queryRunner.commitTransaction();
+
+        await this.notificationsService.createNotification({
+          uid,
+          type: NotificationType.ORDER_CANCELLED,
+          title: 'Đơn hàng đã bị hủy',
+          body: `Đơn hàng #${order.orderId.slice(0, 8)} đã được hủy thành công.`,
+          refId: order.orderId,
+          refType: 'order',
+        });
+        return order;
       }
-
-      order.status = OrderStatus.CANCELLED;
-      await queryRunner.manager.save(order);
-
-      await queryRunner.commitTransaction();
-      await this.notificationsService.createNotification({
-        uid,
-        type: NotificationType.ORDER_CANCELLED,
-        title: 'Đơn hàng đã bị hủy',
-        body: `Đơn hàng #${order.orderId.slice(0, 8)} đã được hủy thành công.`,
-        refId: order.orderId,
-        refType: 'order',
-      });
-      return order;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -347,6 +379,82 @@ export class OrdersService {
 
       await queryRunner.commitTransaction();
       return { message: 'Đã hủy hoàn toàn giao dịch thanh toán' };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  // 4c. Admin xác nhận hủy đơn hàng (Cho các đơn có yêu cầu hủy qua Stripe)
+  async approveCancel(orderId: string) {
+    const order = await this.orderRepository.findOne({
+      where: { orderId },
+      relations: { items: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng.');
+    }
+
+    if (order.status !== OrderStatus.CANCEL_REQUESTED) {
+      throw new BadRequestException('Đơn hàng không ở trạng thái yêu cầu hủy.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Hoàn trả lại số lượng tồn kho của các biến thể
+      for (const item of order.items) {
+        const variant = await queryRunner.manager.findOne(ProductVariant, {
+          where: { variantId: item.variantId },
+        });
+        if (variant) {
+          variant.stockQty += item.quantity;
+          await queryRunner.manager.save(variant);
+        }
+      }
+
+      // Đổi trạng thái thành CANCELLED
+      order.status = OrderStatus.CANCELLED;
+      await queryRunner.manager.save(order);
+
+      // Xử lý hoàn tiền Stripe
+      if (order.paymentMethod === PaymentMethod.STRIPE) {
+        try {
+          // Tìm payment intent dựa trên orderId trong metadata
+          const intents = await this.stripe.paymentIntents.search({
+            query: `metadata['orderId']:'${order.orderId}'`,
+          });
+
+          if (intents.data.length > 0) {
+            const paymentIntentId = intents.data[0].id;
+            await this.stripe.refunds.create({
+              payment_intent: paymentIntentId,
+            });
+            this.logger.log(`Refunded Stripe payment ${paymentIntentId} for order ${order.orderId}`);
+          } else {
+            this.logger.warn(`Could not find Stripe payment intent for order ${order.orderId}`);
+          }
+        } catch (stripeErr) {
+          this.logger.error('Stripe refund failed:', stripeErr);
+          throw new InternalServerErrorException('Không thể hoàn tiền qua Stripe. Vui lòng kiểm tra lại Dashboard Stripe.');
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      await this.notificationsService.createNotification({
+        uid: order.uid,
+        type: NotificationType.ORDER_CANCELLED,
+        title: 'Đơn hàng đã được hủy và hoàn tiền',
+        body: `Yêu cầu hủy đơn #${order.orderId.slice(0, 8)} đã được duyệt. Tiền sẽ được hoàn về thẻ của bạn trong vài ngày tới.`,
+        refId: order.orderId,
+        refType: 'order',
+      });
+
+      return order;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
