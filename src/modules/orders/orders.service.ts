@@ -2,10 +2,12 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Order, OrderStatus } from '../../entities/order.entity';
+import { Order, OrderStatus, PaymentMethod } from '../../entities/order.entity';
 import { OrderItem } from '../../entities/order-item.entity';
 import { Cart } from '../../entities/cart.entity';
 import { CartItem } from '../../entities/cart-item.entity';
@@ -385,6 +387,8 @@ export class OrdersService {
     } finally {
       await queryRunner.release();
     }
+  }
+
   // 4c. Admin xác nhận hủy đơn hàng (Cho các đơn có yêu cầu hủy qua Stripe)
   async approveCancel(orderId: string) {
     const order = await this.orderRepository.findOne({
