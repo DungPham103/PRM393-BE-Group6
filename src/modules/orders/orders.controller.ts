@@ -74,6 +74,14 @@ export class OrdersController {
     return this.ordersService.abandonOrder(req.user.uid, id);
   }
 
+  @Post(':id/approve-cancel')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: 'Duyệt yêu cầu hủy đơn và hoàn tiền qua Stripe (Admin only)' })
+  approveCancel(@Param('id') id: string) {
+    return this.ordersService.approveCancel(id);
+  }
+
   @Patch(':id/status')
   @UseGuards(RolesGuard)
   @Roles('admin')
